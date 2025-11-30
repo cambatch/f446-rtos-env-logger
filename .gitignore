@@ -53,3 +53,14 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+
+# CubeIDE
+*.launch
+.settings/language.settings.xml
+
+.DS_Store
+Thumbs.db
+
+*.swp
+*~
