@@ -26,6 +26,8 @@
 #include <string.h>
 
 #include "ili9341.h"
+#include "sensors.h"
+
 #include "queue.h"
 /* USER CODE END Includes */
 
@@ -33,9 +35,9 @@
 /* USER CODE BEGIN PTD */
 typedef struct {
 	TickType_t timestamp;
-	float temperature;
-	float humidity;
-	uint16_t light;
+	int32_t temperature;
+	uint32_t humidity;
+	int32_t lux;
 } SensorData_t;
 
 /* USER CODE END PTD */
@@ -57,10 +59,10 @@ SPI_HandleTypeDef hspi1;
 
 UART_HandleTypeDef huart2;
 
-/* Definitions for DefaultTask */
-osThreadId_t DefaultTaskHandle;
-const osThreadAttr_t DefaultTask_attributes = {
-  .name = "DefaultTask",
+/* Definitions for Debug_Task */
+osThreadId_t Debug_TaskHandle;
+const osThreadAttr_t Debug_Task_attributes = {
+  .name = "Debug_Task",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityBelowNormal,
 };
@@ -68,14 +70,14 @@ const osThreadAttr_t DefaultTask_attributes = {
 osThreadId_t LCD_TaskHandle;
 const osThreadAttr_t LCD_Task_attributes = {
   .name = "LCD_Task",
-  .stack_size = 1024 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Sensor_Task */
 osThreadId_t Sensor_TaskHandle;
 const osThreadAttr_t Sensor_Task_attributes = {
   .name = "Sensor_Task",
-  .stack_size = 1024 * 4,
+  .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
@@ -88,12 +90,11 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
-void StartDefaultTask(void *argument);
+void StartDebugTask(void *argument);
 void StartLcdTask(void *argument);
 void StartSensorTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -139,8 +140,8 @@ int main(void)
   ILI9341_Init();
   ILI9341_FillScreen(ILI9341_WHITE);
 
-  xSensorDataQueue = xQueueCreate(5, sizeof(SensorData_t));
-  if(xSensorDataQueue == NULL) {
+  // Initialize TSL2591
+  if(!TSL2591Init()) {
 	  Error_Handler();
   }
 
@@ -162,12 +163,15 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-	/* add queues, ... */
+	xSensorDataQueue = xQueueCreate(5, sizeof(SensorData_t));
+	if(xSensorDataQueue == NULL) {
+	  Error_Handler();
+	}
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of DefaultTask */
-  DefaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &DefaultTask_attributes);
+  /* creation of Debug_Task */
+  Debug_TaskHandle = osThreadNew(StartDebugTask, NULL, &Debug_Task_attributes);
 
   /* creation of LCD_Task */
   LCD_TaskHandle = osThreadNew(StartLcdTask, NULL, &LCD_Task_attributes);
@@ -377,11 +381,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, SPI1_CS_Pin|ILI_DC_Pin|ILI_RES_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SPI1_CS_Pin ILI_DC_Pin ILI_RES_Pin */
   GPIO_InitStruct.Pin = SPI1_CS_Pin|ILI_DC_Pin|ILI_RES_Pin;
@@ -391,7 +395,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
+  // Enable button interrupt
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 15, 1);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
@@ -399,19 +405,28 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_StartDebugTask */
 /**
- * @brief  Function implementing the defaultTask thread.
- * @param  argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+  * @brief  Function implementing the Debug_Task thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDebugTask */
+void StartDebugTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
+	char buf[80];
+
 	/* Infinite loop */
 	for (;;) {
-		vTaskDelay(pdMS_TO_TICKS(10));
+		// Wait for a notification from ISR
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+		UBaseType_t lcdMin = uxTaskGetStackHighWaterMark((TaskHandle_t)LCD_TaskHandle);
+		UBaseType_t sensorMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Sensor_TaskHandle);
+
+		int len = snprintf(buf, sizeof(buf), "LCD min stack: %lu words\r\nSensor min stack: %lu words\r\n", (unsigned long)lcdMin, (unsigned long)sensorMin);
+		HAL_UART_Transmit(&huart2, (uint8_t*)buf, len, HAL_MAX_DELAY);
 	}
   /* USER CODE END 5 */
 }
@@ -432,11 +447,28 @@ void StartLcdTask(void *argument)
   for(;;)
   {
 	  if(xQueueReceive(xSensorDataQueue, &sensorData, portMAX_DELAY) == pdPASS) {
-		  char line1[32];
+		  char line1[50];
 		  char line2[32];
 
-		  snprintf(line1, sizeof(line1), "T: %.1fF  H: %.0f%%", sensorData.temperature, sensorData.humidity);
-		  snprintf(line2, sizeof(line2), "L: %u", sensorData.light);
+		  // Format temperature and humidity
+		  char sign = (sensorData.temperature < 0) ? '-' : '+';
+		  int32_t v = (sensorData.temperature < 0) ? -sensorData.temperature : sensorData.temperature;
+		  int32_t temp_int = v / 10;
+		  int32_t temp_frac = v % 10;
+
+		  uint32_t rh_int = sensorData.humidity / 10;
+		  uint32_t rh_frac = sensorData.humidity % 10;
+
+		  snprintf(line1, sizeof(line1), "T: %c%ld.%01ld C    H: %lu.%01lu %%", sign, (long)temp_int, (long)temp_frac, (unsigned long)rh_int, (unsigned long)rh_frac);
+
+		  // Format lux
+		  if(sensorData.lux < 0) {
+			  snprintf(line2, sizeof(line2), "Saturated");
+		  } else {
+			  int32_t lux_int = sensorData.lux / 10;
+			  int32_t lux_frac = sensorData.lux % 10;
+			  snprintf(line2, sizeof(line2), "%ld.%01ld lx", (long)lux_int, (long)lux_frac);
+		  }
 
 		  ILI9341_FillRectangle(0, 0, ILI9341_WIDTH, 20, ILI9341_WHITE);
 		  ILI9341_WriteString(2, 2, line1, Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
@@ -460,38 +492,34 @@ void StartSensorTask(void *argument)
   /* USER CODE BEGIN StartSensorTask */
 	SensorData_t sensorData = {};
 
-	const TickType_t xDelay = pdMS_TO_TICKS(1000);
+	const TickType_t taskDelay = pdMS_TO_TICKS(1000);
+
+	// SHT31
 	const TickType_t measureDelay = pdMS_TO_TICKS(20);
-	const uint8_t sht3x_addr = (0x44 << 1);
-	uint8_t sht3x_command[2] = { 0x2C, 0x06 };
 	uint8_t data[6] = {};
-	uint16_t rawTemp = 0;
-	uint16_t rawRH = 0;
+
+	// TSL2591
+	uint16_t chs[2] = {};
+
 
   /* Infinite loop */
   for(;;)
   {
-	  // Send measure command to sensor
-	HAL_I2C_Master_Transmit(&hi2c1, sht3x_addr, sht3x_command, 2, HAL_MAX_DELAY);
+	  sensorData.timestamp = xTaskGetTickCount();
 
-	// Takes 15ms for measurement
-	vTaskDelay(measureDelay);
+	  SHT31MeasureCommand();
 
-	// Receive data from sensor
-	HAL_I2C_Master_Receive(&hi2c1, sht3x_addr, data, 4, HAL_MAX_DELAY);
+	  vTaskDelay(measureDelay);
 
-	sensorData.timestamp = xTaskGetTickCount();
+	  SHT31ReadSensor(data);
+	  SHT31ConvertFromRaw(data, &sensorData.humidity, &sensorData.temperature);
 
-	rawTemp = ((uint16_t)data[0] << 8) | data[1];
-	rawRH = ((uint16_t)data[3] << 8) | data[4];
-
-	sensorData.humidity = (100.0f * rawRH) / 65535.0f;
-	sensorData.temperature = -49.0f + (315.0f * ((float)rawTemp / 65535.0f));
-	sensorData.light = 234;
+	  TSL2591ReadChannels(&chs[0], &chs[1]);
+	  sensorData.lux = TSL2591CalcLuxX10(chs[0], chs[1]);
 
 	xQueueSend(xSensorDataQueue, &sensorData, 0);
 
-	vTaskDelay(xDelay);
+	vTaskDelay(taskDelay);
   }
   /* USER CODE END StartSensorTask */
 }

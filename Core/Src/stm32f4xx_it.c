@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "cmsis_os.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,7 +59,7 @@
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
-
+extern osThreadId_t Debug_TaskHandle;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -173,5 +174,18 @@ void TIM6_DAC_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void EXTI15_10_IRQHandler(void)
+{
+	BaseType_t higherPriorityTaskWoken = pdFALSE;
+
+	// Handle button interrupt
+	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+
+	// Notify the task
+	vTaskNotifyGiveFromISR((TaskHandle_t)Debug_TaskHandle, &higherPriorityTaskWoken);
+
+	// request context switch if a higher priority task was woken
+	portYIELD_FROM_ISR(higherPriorityTaskWoken);
+}
 
 /* USER CODE END 1 */
