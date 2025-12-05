@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -82,6 +83,8 @@ const osThreadAttr_t Sensor_Task_attributes = {
 };
 /* USER CODE BEGIN PV */
 QueueHandle_t xSensorDataQueue;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,6 +102,11 @@ void StartSensorTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void SPI1_SetSpeedHigh(void)
+{
+	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+	HAL_SPI_Init(&hspi1);
+}
 
 /* USER CODE END 0 */
 
@@ -110,7 +118,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -134,7 +141,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+  res = f_mount(&USERFatFS, (TCHAR const*)USERPath, 1);
+  if(res != FR_OK)
+  {
+	  Error_Handler();
+  }
+
+  // Let SPI go full speed.
+  SPI1_SetSpeedHigh();
 
   // Initialize LCD
   ILI9341_Init();
@@ -312,7 +328,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -379,7 +395,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, SPI1_CS_Pin|ILI_DC_Pin|ILI_RES_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, ILI9341_CS_Pin|ILI_DC_Pin|ILI_RES_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -387,8 +406,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SPI1_CS_Pin ILI_DC_Pin ILI_RES_Pin */
-  GPIO_InitStruct.Pin = SPI1_CS_Pin|ILI_DC_Pin|ILI_RES_Pin;
+  /*Configure GPIO pins : ILI9341_CS_Pin ILI_DC_Pin ILI_RES_Pin SD_CS_Pin */
+  GPIO_InitStruct.Pin = ILI9341_CS_Pin|ILI_DC_Pin|ILI_RES_Pin|SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
