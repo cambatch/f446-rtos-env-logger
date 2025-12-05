@@ -71,19 +71,40 @@ const osThreadAttr_t Debug_Task_attributes = {
 osThreadId_t LCD_TaskHandle;
 const osThreadAttr_t LCD_Task_attributes = {
   .name = "LCD_Task",
-  .stack_size = 256 * 4,
+  .stack_size = 300 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Sensor_Task */
 osThreadId_t Sensor_TaskHandle;
 const osThreadAttr_t Sensor_Task_attributes = {
   .name = "Sensor_Task",
+  .stack_size = 200 * 4,
+  .priority = (osPriority_t) osPriorityNormal1,
+};
+/* Definitions for Logging_Task */
+osThreadId_t Logging_TaskHandle;
+const osThreadAttr_t Logging_Task_attributes = {
+  .name = "Logging_Task",
+  .stack_size = 300 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for InitTask */
+osThreadId_t InitTaskHandle;
+const osThreadAttr_t InitTask_attributes = {
+  .name = "InitTask",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for Spi1Mutex */
+osMutexId_t Spi1MutexHandle;
+const osMutexAttr_t Spi1Mutex_attributes = {
+  .name = "Spi1Mutex"
 };
 /* USER CODE BEGIN PV */
-QueueHandle_t xSensorDataQueue;
+QueueHandle_t xSensorToLcd;
+QueueHandle_t xSensorToLog;
 
+static uint32_t sampleCount = 0;
 
 /* USER CODE END PV */
 
@@ -96,6 +117,8 @@ static void MX_SPI1_Init(void);
 void StartDebugTask(void *argument);
 void StartLcdTask(void *argument);
 void StartSensorTask(void *argument);
+void StartLogTask(void *argument);
+void StartInitTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
@@ -143,28 +166,13 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  res = f_mount(&USERFatFS, (TCHAR const*)USERPath, 1);
-  if(res != FR_OK)
-  {
-	  Error_Handler();
-  }
-
-  // Let SPI go full speed.
-  SPI1_SetSpeedHigh();
-
-  // Initialize LCD
-  ILI9341_Init();
-  ILI9341_FillScreen(ILI9341_WHITE);
-
-  // Initialize TSL2591
-  if(!TSL2591Init()) {
-	  Error_Handler();
-  }
-
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of Spi1Mutex */
+  Spi1MutexHandle = osMutexNew(&Spi1Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
@@ -179,9 +187,14 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-	xSensorDataQueue = xQueueCreate(5, sizeof(SensorData_t));
-	if(xSensorDataQueue == NULL) {
+	xSensorToLcd = xQueueCreate(5, sizeof(SensorData_t));
+	if(xSensorToLcd == NULL) {
 	  Error_Handler();
+	}
+
+	xSensorToLog = xQueueCreate(5, sizeof(SensorData_t));
+	if(xSensorToLog == NULL) {
+		Error_Handler();
 	}
   /* USER CODE END RTOS_QUEUES */
 
@@ -194,6 +207,12 @@ int main(void)
 
   /* creation of Sensor_Task */
   Sensor_TaskHandle = osThreadNew(StartSensorTask, NULL, &Sensor_Task_attributes);
+
+  /* creation of Logging_Task */
+  Logging_TaskHandle = osThreadNew(StartLogTask, NULL, &Logging_Task_attributes);
+
+  /* creation of InitTask */
+  InitTaskHandle = osThreadNew(StartInitTask, NULL, &InitTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -443,8 +462,10 @@ void StartDebugTask(void *argument)
 
 		UBaseType_t lcdMin = uxTaskGetStackHighWaterMark((TaskHandle_t)LCD_TaskHandle);
 		UBaseType_t sensorMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Sensor_TaskHandle);
+		UBaseType_t logMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Logging_TaskHandle);
 
-		int len = snprintf(buf, sizeof(buf), "LCD min stack: %lu words\r\nSensor min stack: %lu words\r\n", (unsigned long)lcdMin, (unsigned long)sensorMin);
+		int len = snprintf(buf, sizeof(buf), "LCD free stack: %lu words\r\nSensor free stack: %lu words\r\nLog free stack: %lu\r\n\r\n",
+						   (unsigned long)lcdMin, (unsigned long)sensorMin, (unsigned long)logMin);
 		HAL_UART_Transmit(&huart2, (uint8_t*)buf, len, HAL_MAX_DELAY);
 	}
   /* USER CODE END 5 */
@@ -465,7 +486,9 @@ void StartLcdTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  if(xQueueReceive(xSensorDataQueue, &sensorData, portMAX_DELAY) == pdPASS) {
+	  if(xQueueReceive(xSensorToLcd, &sensorData, portMAX_DELAY) == pdPASS) {
+		  osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
+
 		  char line1[50];
 		  char line2[32];
 
@@ -494,6 +517,8 @@ void StartLcdTask(void *argument)
 
 		  ILI9341_FillRectangle(0, 22, ILI9341_WIDTH, 20, ILI9341_WHITE);
 		  ILI9341_WriteString(2, 24, line2, Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
+
+		  osMutexRelease(Spi1MutexHandle);
 	  }
   }
   /* USER CODE END StartLcdTask */
@@ -536,11 +561,88 @@ void StartSensorTask(void *argument)
 	  TSL2591ReadChannels(&chs[0], &chs[1]);
 	  sensorData.lux = TSL2591CalcLuxX10(chs[0], chs[1]);
 
-	xQueueSend(xSensorDataQueue, &sensorData, 0);
+	  xQueueSend(xSensorToLcd, &sensorData, 0);
+
+	  // Log every 10 seconds
+	  if((sampleCount % 10) == 0)
+	  {
+		  xQueueSendToBack(xSensorToLog, &sensorData, 0);
+	  }
+
+	  ++sampleCount;
 
 	vTaskDelay(taskDelay);
   }
   /* USER CODE END StartSensorTask */
+}
+
+/* USER CODE BEGIN Header_StartLogTask */
+/**
+* @brief Function implementing the Logging_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLogTask */
+void StartLogTask(void *argument)
+{
+  /* USER CODE BEGIN StartLogTask */
+	SensorData_t sData;
+	UINT bw;
+
+  /* Infinite loop */
+  for(;;)
+  {
+	  if(xQueueReceive(xSensorToLog, &sData, portMAX_DELAY) == pdPASS)
+	  {
+		  char line[64];
+		  int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld\r\n", (unsigned long)sData.timestamp, (long int)sData.temperature, (unsigned long)sData.humidity,  (long int)sData.lux);
+
+		  osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
+
+		  f_open(&USERFile, "log.csv", FA_OPEN_APPEND | FA_WRITE);
+		  f_write(&USERFile, line, len, &bw);
+		  f_close(&USERFile);
+
+		  osMutexRelease(Spi1MutexHandle);
+	  }
+  }
+  /* USER CODE END StartLogTask */
+}
+
+/* USER CODE BEGIN Header_StartInitTask */
+/**
+* @brief Function implementing the InitTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartInitTask */
+void StartInitTask(void *argument)
+{
+  /* USER CODE BEGIN StartInitTask */
+	  FRESULT res;
+
+	  // Mount SD
+	 res = f_mount(&USERFatFS, (TCHAR const*)USERPath, 1);
+	 if(res != FR_OK)
+	 {
+	  Error_Handler();
+	 }
+
+	 // Let SPI go full speed.
+	SPI1_SetSpeedHigh();
+
+	// Initialize LCD
+	ILI9341_Init();
+	ILI9341_FillScreen(ILI9341_WHITE);
+
+	// Initialize TSL2591
+	if(!TSL2591Init()) {
+	  Error_Handler();
+	}
+
+	 // Delete self
+	vTaskDelete(NULL);
+  /* USER CODE END StartInitTask */
 }
 
 /**
