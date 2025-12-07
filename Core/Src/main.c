@@ -38,10 +38,10 @@
 /* USER CODE BEGIN PTD */
 typedef struct {
 	TickType_t timestamp;
-	int32_t temperature;
-	uint32_t humidity;
-	int32_t lux;
-	int32_t pressure;
+	int32_t temperature; // temp_x10
+	uint32_t humidity;	 // humidity_x10
+	int32_t lux;		 // lux_x10
+	int32_t pressure;	 // Pa
 } SensorData_t;
 
 /* USER CODE END PTD */
@@ -655,8 +655,8 @@ void StartSensorTask(void *argument) {
 
 		xQueueSend(xSensorToLcd, &sensorData, 0);
 
-		// Log every 10 seconds
-		if (gLoggingEnabled && (sampleCount % 10) == 0) {
+		// Log every 5 seconds
+		if (gLoggingEnabled && (sampleCount % 5) == 0) {
 			xQueueSendToBack(xSensorToLog, &sensorData, 0);
 		}
 
@@ -678,19 +678,28 @@ void StartLogTask(void *argument) {
 	/* USER CODE BEGIN StartLogTask */
 	SensorData_t sData;
 	UINT bw;
+	uint32_t count = 0;
 
 	/* Infinite loop */
 	for (;;) {
 		if (xQueueReceive(xSensorToLog, &sData, portMAX_DELAY) == pdPASS) {
 			char line[64];
-			int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld\r\n",
+			// timestamp,temperature,humidity,pressure(Pa),lux
+			int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld,%ld\r\n",
 					(unsigned long) sData.timestamp,
 					(long int) sData.temperature,
-					(unsigned long) sData.humidity, (long int) sData.lux);
+					(unsigned long) sData.humidity, (long int) sData.pressure, (long int)sData.lux);
 
 			osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
 
 			f_write(&USERFile, line, len, &bw);
+
+			// sync every 5 writes
+			if(count % 5 == 0) {
+				f_sync(&USERFile);
+			}
+
+			++count;
 
 			osMutexRelease(Spi1MutexHandle);
 		}
