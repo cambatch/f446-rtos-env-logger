@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "ili9341.h"
 #include "sensors.h"
@@ -64,7 +65,7 @@ UART_HandleTypeDef huart2;
 osThreadId_t Debug_TaskHandle;
 const osThreadAttr_t Debug_Task_attributes = {
   .name = "Debug_Task",
-  .stack_size = 128 * 4,
+  .stack_size = 300 * 4,
   .priority = (osPriority_t) osPriorityBelowNormal,
 };
 /* Definitions for LCD_Task */
@@ -88,13 +89,6 @@ const osThreadAttr_t Logging_Task_attributes = {
   .stack_size = 300 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for InitTask */
-osThreadId_t InitTaskHandle;
-const osThreadAttr_t InitTask_attributes = {
-  .name = "InitTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
-};
 /* Definitions for Spi1Mutex */
 osMutexId_t Spi1MutexHandle;
 const osMutexAttr_t Spi1Mutex_attributes = {
@@ -105,6 +99,8 @@ QueueHandle_t xSensorToLcd;
 QueueHandle_t xSensorToLog;
 
 static uint32_t sampleCount = 0;
+
+volatile bool gLoggingEnabled = false;
 
 /* USER CODE END PV */
 
@@ -118,13 +114,13 @@ void StartDebugTask(void *argument);
 void StartLcdTask(void *argument);
 void StartSensorTask(void *argument);
 void StartLogTask(void *argument);
-void StartInitTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 static void SPI1_SetSpeedHigh(void)
 {
 	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
@@ -166,6 +162,31 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+
+	// Try to mount a few times
+	for(int i = 0; i < 5; ++i)
+	{
+	  retUSER = f_mount(&USERFatFS, (TCHAR const*)USERPath, 1);
+	  if(retUSER == FR_OK) {
+		  break;
+	  }
+	  HAL_Delay(10);
+	}
+
+	// Let SPI go full speed.
+	SPI1_SetSpeedHigh();
+
+	// Initialize LCD
+	ILI9341_Init();
+	ILI9341_FillScreen(ILI9341_WHITE);
+
+	// Try to initialize TSL2591
+	for(int i = 0; i < 5; ++i)
+	{
+		if(TSL2591Init()) break;
+		HAL_Delay(200);
+	}
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -210,9 +231,6 @@ int main(void)
 
   /* creation of Logging_Task */
   Logging_TaskHandle = osThreadNew(StartLogTask, NULL, &Logging_Task_attributes);
-
-  /* creation of InitTask */
-  InitTaskHandle = osThreadNew(StartInitTask, NULL, &InitTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -414,16 +432,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, ILI9341_CS_Pin|ILI_DC_Pin|ILI_RES_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, ILI9341_CS_Pin|SD_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOC, ILI_DC_Pin|ILI_RES_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pin : BTN_Pin */
+  GPIO_InitStruct.Pin = BTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(BTN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ILI9341_CS_Pin ILI_DC_Pin ILI_RES_Pin SD_CS_Pin */
   GPIO_InitStruct.Pin = ILI9341_CS_Pin|ILI_DC_Pin|ILI_RES_Pin|SD_CS_Pin;
@@ -441,6 +459,19 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	// PC13 is button
+	if(GPIO_Pin == GPIO_PIN_13)
+	{
+		BaseType_t higherPriorityTaskWoken = pdFALSE;
+
+		vTaskNotifyGiveFromISR(Debug_TaskHandle, &higherPriorityTaskWoken);
+
+		portYIELD_FROM_ISR(higherPriorityTaskWoken);
+	}
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDebugTask */
@@ -453,20 +484,55 @@ static void MX_GPIO_Init(void)
 void StartDebugTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-	char buf[80];
-
+	char buf[130];
+	UINT bw;
 	/* Infinite loop */
 	for (;;) {
 		// Wait for a notification from ISR
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
+		osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
+		if(gLoggingEnabled) {
+			// Disable logging and close the file
+			int len = snprintf(buf, sizeof(buf), "[LOG END]\r\n");
+			f_write(&USERFile, buf, len, &bw);
+			f_sync(&USERFile);
+			f_close(&USERFile);
+			gLoggingEnabled = false;
+		} else {
+			// Enable logging and open file, disable if unable to open file.
+			retUSER = f_open(&USERFile, "log.csv", FA_OPEN_APPEND | FA_WRITE);
+			if(retUSER != FR_OK) {
+				int len = snprintf(buf, sizeof(buf), "Failed to open 'log.csv'...Disabling logging...\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t *)buf, len, HAL_MAX_DELAY);
+				gLoggingEnabled = false;
+			} else {
+				int len = snprintf(buf, sizeof(buf), "Logging to file 'log.csv'...\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t *)buf, len, HAL_MAX_DELAY);
+				gLoggingEnabled = true;
+				len = snprintf(buf, sizeof(buf), "[LOG BEG]\r\n");
+				f_write(&USERFile, buf, len, &bw);
+			}
+		}
+		osMutexRelease(Spi1MutexHandle);
+
 		UBaseType_t lcdMin = uxTaskGetStackHighWaterMark((TaskHandle_t)LCD_TaskHandle);
 		UBaseType_t sensorMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Sensor_TaskHandle);
 		UBaseType_t logMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Logging_TaskHandle);
+		UBaseType_t debugMin = uxTaskGetStackHighWaterMark((TaskHandle_t)Debug_TaskHandle);
 
-		int len = snprintf(buf, sizeof(buf), "LCD free stack: %lu words\r\nSensor free stack: %lu words\r\nLog free stack: %lu\r\n\r\n",
-						   (unsigned long)lcdMin, (unsigned long)sensorMin, (unsigned long)logMin);
-		HAL_UART_Transmit(&huart2, (uint8_t*)buf, len, HAL_MAX_DELAY);
+		int len = snprintf(buf, sizeof(buf),
+						   "LCD free stack: %lu words\r\n"
+						   "Sensor free stack: %lu words\r\n"
+						   "Log free stack: %lu words\r\n"
+						   "Debug free stack: %lu words\r\n"
+						   "Logging: %s\r\n\r\n",
+						   (unsigned long)lcdMin,
+						   (unsigned long)sensorMin,
+						   (unsigned long)logMin,
+						   (unsigned long)debugMin,
+						   gLoggingEnabled ? "ON" : "OFF");
+		HAL_UART_Transmit(&huart2, (uint8_t *)buf, len, HAL_MAX_DELAY);
 	}
   /* USER CODE END 5 */
 }
@@ -491,6 +557,7 @@ void StartLcdTask(void *argument)
 
 		  char line1[50];
 		  char line2[32];
+		  char line3[15];
 
 		  // Format temperature and humidity
 		  char sign = (sensorData.temperature < 0) ? '-' : '+';
@@ -512,11 +579,17 @@ void StartLcdTask(void *argument)
 			  snprintf(line2, sizeof(line2), "%ld.%01ld lx", (long)lux_int, (long)lux_frac);
 		  }
 
+		  // Logging status
+		  snprintf(line3, sizeof(line3), "Logging %s", gLoggingEnabled ? "ON" : "OFF");
+
 		  ILI9341_FillRectangle(0, 0, ILI9341_WIDTH, 20, ILI9341_WHITE);
 		  ILI9341_WriteString(2, 2, line1, Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
 
 		  ILI9341_FillRectangle(0, 22, ILI9341_WIDTH, 20, ILI9341_WHITE);
 		  ILI9341_WriteString(2, 24, line2, Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
+
+		  ILI9341_FillRectangle(0, 44, ILI9341_WIDTH, 20, ILI9341_WHITE);
+		  ILI9341_WriteString(2, 46, line3, Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
 
 		  osMutexRelease(Spi1MutexHandle);
 	  }
@@ -564,7 +637,7 @@ void StartSensorTask(void *argument)
 	  xQueueSend(xSensorToLcd, &sensorData, 0);
 
 	  // Log every 10 seconds
-	  if((sampleCount % 10) == 0)
+	  if(gLoggingEnabled && (sampleCount % 10) == 0)
 	  {
 		  xQueueSendToBack(xSensorToLog, &sensorData, 0);
 	  }
@@ -595,54 +668,21 @@ void StartLogTask(void *argument)
 	  if(xQueueReceive(xSensorToLog, &sData, portMAX_DELAY) == pdPASS)
 	  {
 		  char line[64];
-		  int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld\r\n", (unsigned long)sData.timestamp, (long int)sData.temperature, (unsigned long)sData.humidity,  (long int)sData.lux);
+		  int len = snprintf(line, sizeof(line),
+				  	  	  	 "%lu,%ld,%lu,%ld\r\n",
+				  	  	  	 (unsigned long)sData.timestamp,
+							 (long int)sData.temperature,
+							 (unsigned long)sData.humidity,
+							 (long int)sData.lux);
 
 		  osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
 
-		  f_open(&USERFile, "log.csv", FA_OPEN_APPEND | FA_WRITE);
 		  f_write(&USERFile, line, len, &bw);
-		  f_close(&USERFile);
 
 		  osMutexRelease(Spi1MutexHandle);
 	  }
   }
   /* USER CODE END StartLogTask */
-}
-
-/* USER CODE BEGIN Header_StartInitTask */
-/**
-* @brief Function implementing the InitTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartInitTask */
-void StartInitTask(void *argument)
-{
-  /* USER CODE BEGIN StartInitTask */
-	  FRESULT res;
-
-	  // Mount SD
-	 res = f_mount(&USERFatFS, (TCHAR const*)USERPath, 1);
-	 if(res != FR_OK)
-	 {
-	  Error_Handler();
-	 }
-
-	 // Let SPI go full speed.
-	SPI1_SetSpeedHigh();
-
-	// Initialize LCD
-	ILI9341_Init();
-	ILI9341_FillScreen(ILI9341_WHITE);
-
-	// Initialize TSL2591
-	if(!TSL2591Init()) {
-	  Error_Handler();
-	}
-
-	 // Delete self
-	vTaskDelete(NULL);
-  /* USER CODE END StartInitTask */
 }
 
 /**

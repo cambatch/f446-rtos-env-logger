@@ -56,6 +56,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define BTN_Pin GPIO_PIN_13
+#define BTN_GPIO_Port GPIOC
 #define ILI9341_CS_Pin GPIO_PIN_0
 #define ILI9341_CS_GPIO_Port GPIOC
 #define ILI_DC_Pin GPIO_PIN_1

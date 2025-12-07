@@ -51,6 +51,29 @@
 
 /* USER CODE END FunctionPrototypes */
 
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+
+/* USER CODE BEGIN 4 */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+	(void)xTask;
+	(void)pcTaskName;
+
+	taskDISABLE_INTERRUPTS();
+	for(;;) {
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+		for(volatile uint32_t i = 0; i < 1000000; ++i) {
+			__NOP();
+		}
+	}
+}
+/* USER CODE END 4 */
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 

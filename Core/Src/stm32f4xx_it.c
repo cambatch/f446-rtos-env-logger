@@ -176,16 +176,8 @@ void TIM6_DAC_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void EXTI15_10_IRQHandler(void)
 {
-	BaseType_t higherPriorityTaskWoken = pdFALSE;
-
 	// Handle button interrupt
 	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
-
-	// Notify the task
-	vTaskNotifyGiveFromISR((TaskHandle_t)Debug_TaskHandle, &higherPriorityTaskWoken);
-
-	// request context switch if a higher priority task was woken
-	portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }
 
 /* USER CODE END 1 */

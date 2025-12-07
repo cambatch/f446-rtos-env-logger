@@ -9,6 +9,8 @@
 #include "stm32f4xx_hal.h"
 #include "main.h"
 
+#define SPI_TIMEOUT_MS 10
+
 
 extern SPI_HandleTypeDef hspi1;
 
@@ -16,8 +18,8 @@ extern SPI_HandleTypeDef hspi1;
 #define SD_CS_HIGH()  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
 
 /* Timeouts (tweak if needed) */
-#define SD_CMD_TIMEOUT     0xFFFF
-#define SD_TOKEN_TIMEOUT   0xFFFF
+#define SD_CMD_TIMEOUT     1000u
+#define SD_TOKEN_TIMEOUT   2000u
 
 /* R1 response bits */
 #define R1_IDLE_STATE      0x01
@@ -34,14 +36,14 @@ static BYTE CardType = 0;
 static uint8_t spi_txrx(uint8_t data)
 {
     uint8_t rx;
-    HAL_SPI_TransmitReceive(&hspi1, &data, &rx, 1, HAL_MAX_DELAY);
+    HAL_SPI_TransmitReceive(&hspi1, &data, &rx, 1, SPI_TIMEOUT_MS);
     return rx;
 }
 
 static void spi_tx(uint8_t data)
 {
     uint8_t dummy;
-    HAL_SPI_TransmitReceive(&hspi1, &data, &dummy, 1, HAL_MAX_DELAY);
+    HAL_SPI_TransmitReceive(&hspi1, &data, &dummy, 1, SPI_TIMEOUT_MS);
 }
 
 static uint8_t spi_rx(void)
