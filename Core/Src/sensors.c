@@ -7,25 +7,26 @@
 
 #include "sensors.h"
 
-bool TSL2591Init(void) {
-	uint8_t id = TSL2591Read(TSL2591_REG_ID);
-	if(id != 0x50) {
+static BME280_CalibData calib;
+
+bool TSL2591_Init(void) {
+	uint8_t id = TSL2591_Read(TSL2591_REG_ID);
+	if (id != 0x50) {
 		return false;
 	}
 
-	TSL2591Write(TSL2591_REG_ENABLE, TSL2591_ENABLE_PON);
+	TSL2591_Write(TSL2591_REG_ENABLE, TSL2591_ENABLE_PON);
 
 	HAL_Delay(5);
 
-	TSL2591Write(TSL2591_REG_ENABLE, TSL2591_ENABLE_PON | TSL2591_ENABLE_AEN);
+	TSL2591_Write(TSL2591_REG_ENABLE, TSL2591_ENABLE_PON | TSL2591_ENABLE_AEN);
 
-	TSL2591Write(TSL2591_REG_CONTROL, TSL2591_AGAIN_MED | TSL2591_ATIME_100MS);
+	TSL2591_Write(TSL2591_REG_CONTROL, TSL2591_AGAIN_MED | TSL2591_ATIME_100MS);
 
 	return true;
 }
 
-
-void TSL2591Write(uint8_t reg, uint8_t value) {
+void TSL2591_Write(uint8_t reg, uint8_t value) {
 	uint8_t buf[2];
 	buf[0] = TSL2591_CMD_NORMAL | reg;
 	buf[1] = value;
@@ -33,7 +34,7 @@ void TSL2591Write(uint8_t reg, uint8_t value) {
 	HAL_I2C_Master_Transmit(&hi2c1, TSL2591_ADDR, buf, 2, HAL_MAX_DELAY);
 }
 
-uint8_t TSL2591Read(uint8_t reg) {
+uint8_t TSL2591_Read(uint8_t reg) {
 	uint8_t cmd = TSL2591_CMD_NORMAL | reg;
 	uint8_t value;
 
@@ -44,7 +45,7 @@ uint8_t TSL2591Read(uint8_t reg) {
 	return value;
 }
 
-void TSL2591ReadMulti(uint8_t reg, uint8_t *buf, uint8_t len) {
+void TSL2591_ReadMulti(uint8_t reg, uint8_t *buf, uint8_t len) {
 	uint8_t cmd = TSL2591_CMD_NORMAL | reg;
 
 	HAL_I2C_Master_Transmit(&hi2c1, TSL2591_ADDR, &cmd, 1, HAL_MAX_DELAY);
@@ -52,18 +53,18 @@ void TSL2591ReadMulti(uint8_t reg, uint8_t *buf, uint8_t len) {
 	HAL_I2C_Master_Receive(&hi2c1, TSL2591_ADDR, buf, len, HAL_MAX_DELAY);
 }
 
-void TSL2591ReadChannels(uint16_t *ch0, uint16_t *ch1) {
+void TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1) {
 	uint8_t buf[4];
 
-	TSL2591ReadMulti(TSL2591_REG_C0DATAL, buf, 4);
+	TSL2591_ReadMulti(TSL2591_REG_C0DATAL, buf, 4);
 
-	// little endian (low byte first)
-	*ch0 = ((uint16_t)buf[1] << 8) | buf[0];
-	*ch1 = ((uint16_t)buf[3] << 8) | buf[2];
+	// little endian
+	*ch0 = ((uint16_t) buf[1] << 8) | buf[0];
+	*ch1 = ((uint16_t) buf[3] << 8) | buf[2];
 }
 
-int32_t TSL2591CalcLuxX10(uint16_t ch0, uint16_t ch1) {
-	if(ch0 == 0 || ch0 == TSL2591_SATURATED || ch1 == TSL2591_SATURATED) {
+int32_t TSL2591_CalcLuxX10(uint16_t ch0, uint16_t ch1) {
+	if (ch0 == 0 || ch0 == TSL2591_SATURATED || ch1 == TSL2591_SATURATED) {
 		return -1;
 	}
 
@@ -71,43 +72,213 @@ int32_t TSL2591CalcLuxX10(uint16_t ch0, uint16_t ch1) {
 	int32_t c1 = ch1;
 
 	int32_t diff = c0 - c1;
-	if(diff < 0) {
+	if (diff < 0) {
 		diff = 0;
 	}
 
 	// lux10 = diff^2 * 4080 / (c0 * 2500)
-	uint64_t num = (uint64_t)diff * (uint64_t)diff * 4080ull;
-	uint64_t den = (uint64_t)c0 * 2500ull;
-	if(den == 0) {
+	uint64_t num = (uint64_t) diff * (uint64_t) diff * 4080ull;
+	uint64_t den = (uint64_t) c0 * 2500ull;
+	if (den == 0) {
 		return -1;
 	}
 
 	uint64_t lux10_u = num / den;
-	if(lux10_u > 0x7FFFFFFF) {
+	if (lux10_u > 0x7FFFFFFF) {
 		lux10_u = 0x7FFFFFFF;
 	}
 
-	return (int32_t)lux10_u;
+	return (int32_t) lux10_u;
 }
 
 // ============================ SHT31 ===================================
 
-void SHT31MeasureCommand(void) {
+void SHT31_MeasureCommand(void) {
 	static const uint8_t cmd[2] = { SHT31_MEAS_CMD_HIGH, SHT31_MEAS_CMD_LOW };
 
-	HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, (uint8_t*)cmd, 2, HAL_MAX_DELAY);
+	HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, (uint8_t*) cmd, 2,
+	HAL_MAX_DELAY);
 }
 
 // The size of buf MUST be at least 6 bytes
-void SHT31ReadSensor(uint8_t *buf) {
+void SHT31_ReadSensor(uint8_t *buf) {
 	HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, buf, 6, HAL_MAX_DELAY);
 }
 
 // Assuming pointer to raw sensor data
-void SHT31ConvertFromRaw(uint8_t *buf, uint32_t *h, int32_t *t) {
-	uint16_t rawTemp = ((uint16_t)buf[0] << 8) | buf[1];
-	uint16_t rawRH = ((uint16_t)buf[3] << 8) | buf[4];
+void SHT31_ConvertFromRaw(uint8_t *buf, uint32_t *h, int32_t *t) {
+	uint16_t rawTemp = ((uint16_t) buf[0] << 8) | buf[1];
+	uint16_t rawRH = ((uint16_t) buf[3] << 8) | buf[4];
 
-	*h = ((uint32_t)1000  * rawRH + 32767u) / 65535;
-	*t = -450 + ((int32_t)1750 * rawTemp + 32767) / 65535;
+	*h = ((uint32_t) 1000 * rawRH + 32767u) / 65535;
+	*t = -450 + ((int32_t) 1750 * rawTemp + 32767) / 65535;
+}
+
+// ============================ BME280 ===================================
+
+static uint8_t BME280_WriteReg(uint8_t reg, uint8_t value) {
+	return HAL_I2C_Mem_Write(&hi2c1, BME280_ADDR, reg, I2C_MEMADD_SIZE_8BIT,
+			&value, 1, HAL_MAX_DELAY);
+}
+
+static uint8_t BME280_ReadReg(uint8_t reg, uint8_t *buf, uint16_t len) {
+	return HAL_I2C_Mem_Read(&hi2c1, BME280_ADDR, reg, I2C_MEMADD_SIZE_8BIT, buf,
+			len, HAL_MAX_DELAY);
+}
+
+static uint8_t BME280_ReadCalibration(void) {
+	uint8_t buf1[26];
+	uint8_t buf2[7];
+	uint8_t ret;
+
+	ret = BME280_ReadReg(BME280_REG_CALIB00, buf1, sizeof(buf1));
+	if (ret != HAL_OK)
+		return ret;
+
+	calib.dig_T1 = (uint16_t) (buf1[1] << 8 | buf1[0]);
+	calib.dig_T2 = (int16_t) (buf1[3] << 8 | buf1[2]);
+	calib.dig_T3 = (int16_t) (buf1[5] << 8 | buf1[4]);
+
+	calib.dig_P1 = (uint16_t) (buf1[7] << 8 | buf1[6]);
+	calib.dig_P2 = (int16_t) (buf1[9] << 8 | buf1[8]);
+	calib.dig_P3 = (int16_t) (buf1[11] << 8 | buf1[10]);
+	calib.dig_P4 = (int16_t) (buf1[13] << 8 | buf1[12]);
+	calib.dig_P5 = (int16_t) (buf1[15] << 8 | buf1[14]);
+	calib.dig_P6 = (int16_t) (buf1[17] << 8 | buf1[16]);
+	calib.dig_P7 = (int16_t) (buf1[19] << 8 | buf1[18]);
+	calib.dig_P8 = (int16_t) (buf1[21] << 8 | buf1[20]);
+	calib.dig_P9 = (int16_t) (buf1[23] << 8 | buf1[22]);
+
+	calib.dig_H1 = buf1[25]; // 0xA1
+
+	ret = BME280_ReadReg(BME280_REG_CALIB26, buf2, sizeof(buf2));
+	if (ret != HAL_OK)
+		return ret;
+
+	calib.dig_H2 = (int16_t) (buf2[1] << 8 | buf2[0]);
+	calib.dig_H3 = buf2[2];
+	calib.dig_H4 = (int16_t) ((buf2[3] << 4) | (buf2[4] & 0x0F));
+	calib.dig_H5 = (int16_t) ((buf2[5] << 4) | (buf2[4] >> 4));
+	calib.dig_H6 = (int8_t) buf2[6];
+
+	return HAL_OK;
+}
+
+static uint8_t BME280_WaitForMeasDone() {
+	uint8_t status;
+	do {
+		if (BME280_ReadReg(BME280_REG_STATUS, &status, 1) != HAL_OK)
+			return HAL_ERROR;
+	} while (status & 0x08);
+
+	return HAL_OK;
+}
+
+uint8_t BME280_Init() {
+	HAL_StatusTypeDef ret;
+	uint8_t id;
+
+	ret = BME280_ReadReg(BME280_REG_ID, &id, 1);
+	if (ret != HAL_OK)
+		return ret;
+	if (id != 0x60)
+		return HAL_ERROR;
+
+	ret = BME280_WriteReg(BME280_REG_RESET, BME280_RESET_VALUE);
+	if (ret != HAL_OK)
+		return ret;
+	HAL_Delay(5);
+
+	ret = BME280_ReadCalibration();
+	if (ret != HAL_OK)
+		return ret;
+
+	ret = BME280_WriteReg(BME280_REG_CTRL_HUM, 0x01);
+	if (ret != HAL_OK)
+		return ret;
+
+	ret = BME280_WriteReg(BME280_REG_CONFIG, 0xA8);
+	if (ret != HAL_OK)
+		return ret;
+
+	ret = BME280_WriteReg(BME280_REG_CTRL_MEAS, 0x2F);
+	if (ret != HAL_OK)
+		return ret;
+
+	ret = BME280_WaitForMeasDone();
+	return ret;
+}
+
+uint8_t BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum) {
+	uint8_t data[8];
+	HAL_StatusTypeDef ret;
+
+	ret = BME280_WaitForMeasDone();
+	if (ret != HAL_OK)
+		return ret;
+
+	// Burst read from 0xF7: press[3], temp[3], hum[2]
+	ret = BME280_ReadReg(BME280_REG_PRESS_MSB, data, sizeof(data));
+	if (ret != HAL_OK)
+		return ret;
+
+	int32_t adc_P = ((int32_t) data[0] << 12) | ((int32_t) data[1] << 4)
+			| ((int32_t) data[2] >> 4);
+
+	int32_t adc_T = ((int32_t) data[3] << 12) | ((int32_t) data[4] << 4)
+			| ((int32_t) data[5] >> 4);
+
+	int32_t adc_H = ((int32_t) data[6] << 8) | (int32_t) data[7];
+
+	if (raw_press)
+		*raw_press = adc_P;
+	if (raw_temp)
+		*raw_temp = adc_T;
+	if (raw_hum)
+		*raw_hum = adc_H;
+
+	return HAL_OK;
+}
+
+int32_t BME280_CompensatePressure(int32_t adcP, int32_t adcT) {
+	int32_t var1, var2, t_fine;
+	uint32_t p;
+
+	// temperature calculation
+	var1 = ((((adcT >> 3) - ((int32_t) calib.dig_T1 << 1)))
+			* ((int32_t) calib.dig_T2)) >> 11;
+
+	var2 = (((((adcT >> 4) - ((int32_t) calib.dig_T1))
+			* ((adcT >> 4) - ((int32_t) calib.dig_T1))) >> 12)
+			* ((int32_t) calib.dig_T3)) >> 14;
+
+	t_fine = var1 + var2;
+
+	// Pressure calculation
+	var1 = (((int32_t) t_fine) >> 1) - (int32_t) 64000;
+	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * ((int32_t) calib.dig_P6);
+	var2 = var2 + ((var1 * ((int32_t) calib.dig_P5)) << 1);
+	var2 = (var2 >> 2) + (((int32_t) calib.dig_P4) << 16);
+	var1 = (((((int32_t) calib.dig_P3) * (((var1 >> 2) * (var1 >> 2)) >> 13))
+			>> 3) + ((((int32_t) calib.dig_P2) * var1) >> 1)) >> 18;
+	var1 = ((32768 + var1) * ((int32_t) calib.dig_P1)) >> 15;
+
+	if (var1 == 0)
+		return 0; // avoid division by zero
+
+	p = (((uint32_t) 1048576 - (uint32_t) adcP) - (var2 >> 12)) * 3125;
+
+	if (p < 0x80000000)
+		p = (p << 1) / (uint32_t) var1;
+	else
+		p = (p / (uint32_t) var1) * 2;
+
+	var1 = (((int32_t) calib.dig_P9) * (int32_t) (((p >> 3) * (p >> 3)) >> 13))
+			>> 12;
+
+	var2 = (((int32_t) (p >> 2)) * ((int32_t) calib.dig_P8)) >> 13;
+
+	p = (uint32_t) ((int32_t) p + ((var1 + var2 + calib.dig_P7) >> 4));
+
+	return (int32_t) p; // Return Pa
 }

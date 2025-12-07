@@ -24,5 +24,4 @@ DRESULT SD_SPI_Read(BYTE *buff, DWORD sector, UINT count);
 DRESULT SD_SPI_Write(const BYTE *buff, DWORD sector, UINT count);
 DRESULT SD_SPI_Ioctl(BYTE cmd, void *buff);
 
-
 #endif /* INC_SD_SPI_H_ */

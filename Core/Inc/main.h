@@ -76,7 +76,7 @@ void Error_Handler(void);
 #define TCK_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
-
+#define USE_UART_DEBUG 1
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
