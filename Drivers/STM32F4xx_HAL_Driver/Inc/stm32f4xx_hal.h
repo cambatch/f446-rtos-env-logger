@@ -1,21 +1,21 @@
 /**
-  ******************************************************************************
-  * @file    stm32f4xx_hal.h
-  * @author  MCD Application Team
-  * @brief   This file contains all the functions prototypes for the HAL 
-  *          module driver.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2017 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */ 
+ ******************************************************************************
+ * @file    stm32f4xx_hal.h
+ * @author  MCD Application Team
+ * @brief   This file contains all the functions prototypes for the HAL 
+ *          module driver.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2017 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32F4xx_HAL_H
@@ -29,45 +29,44 @@
 #include "stm32f4xx_hal_conf.h"
 
 /** @addtogroup STM32F4xx_HAL_Driver
-  * @{
-  */
+ * @{
+ */
 
 /** @addtogroup HAL
-  * @{
-  */ 
+ * @{
+ */
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 
 /** @defgroup HAL_Exported_Constants HAL Exported Constants
-  * @{
-  */
+ * @{
+ */
 
 /** @defgroup HAL_TICK_FREQ Tick Frequency
-  * @{
-  */
-typedef enum
-{
-  HAL_TICK_FREQ_10HZ         = 100U,
-  HAL_TICK_FREQ_100HZ        = 10U,
-  HAL_TICK_FREQ_1KHZ         = 1U,
-  HAL_TICK_FREQ_DEFAULT      = HAL_TICK_FREQ_1KHZ
+ * @{
+ */
+typedef enum {
+	HAL_TICK_FREQ_10HZ = 100U,
+	HAL_TICK_FREQ_100HZ = 10U,
+	HAL_TICK_FREQ_1KHZ = 1U,
+	HAL_TICK_FREQ_DEFAULT = HAL_TICK_FREQ_1KHZ
 } HAL_TickFreqTypeDef;
 /**
-  * @}
-  */
+ * @}
+ */
 
 /**
-  * @}
-  */
-   
+ * @}
+ */
+
 /* Exported macro ------------------------------------------------------------*/
 /** @defgroup HAL_Exported_Macros HAL Exported Macros
-  * @{
-  */
+ * @{
+ */
 
 /** @brief  Freeze/Unfreeze Peripherals in Debug mode 
-  */
+ */
 #define __HAL_DBGMCU_FREEZE_TIM2()           (DBGMCU->APB1FZ |= (DBGMCU_APB1_FZ_DBG_TIM2_STOP))
 #define __HAL_DBGMCU_FREEZE_TIM3()           (DBGMCU->APB1FZ |= (DBGMCU_APB1_FZ_DBG_TIM3_STOP))
 #define __HAL_DBGMCU_FREEZE_TIM4()           (DBGMCU->APB1FZ |= (DBGMCU_APB1_FZ_DBG_TIM4_STOP))
@@ -115,17 +114,17 @@ typedef enum
 #define __HAL_DBGMCU_UNFREEZE_TIM11()          (DBGMCU->APB2FZ &= ~(DBGMCU_APB2_FZ_DBG_TIM11_STOP))
 
 /** @brief  Main Flash memory mapped at 0x00000000
-  */
+ */
 #define __HAL_SYSCFG_REMAPMEMORY_FLASH()             (SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_MEM_MODE))
 
 /** @brief  System Flash memory mapped at 0x00000000
-  */
+ */
 #define __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH()       do {SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_MEM_MODE);\
                                                          SYSCFG->MEMRMP |= SYSCFG_MEMRMP_MEM_MODE_0;\
                                                         }while(0);
 
 /** @brief  Embedded SRAM mapped at 0x00000000
-  */
+ */
 #define __HAL_SYSCFG_REMAPMEMORY_SRAM()       do {SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_MEM_MODE);\
                                                   SYSCFG->MEMRMP |= (SYSCFG_MEMRMP_MEM_MODE_0 | SYSCFG_MEMRMP_MEM_MODE_1);\
                                                  }while(0);
@@ -183,51 +182,51 @@ typedef enum
  */
 #endif /* STM32F410Tx || STM32F410Cx || STM32F410Rx || STM32F413xx || STM32F423xx */
 /**
-  * @}
-  */
+ * @}
+ */
 
 /** @defgroup HAL_Private_Macros HAL Private Macros
-  * @{
-  */
+ * @{
+ */
 #define IS_TICKFREQ(FREQ) (((FREQ) == HAL_TICK_FREQ_10HZ)  || \
                            ((FREQ) == HAL_TICK_FREQ_100HZ) || \
                            ((FREQ) == HAL_TICK_FREQ_1KHZ))
 /**
-  * @}
-  */
+ * @}
+ */
 
 /* Exported variables --------------------------------------------------------*/
 
 /** @addtogroup HAL_Exported_Variables
-  * @{
-  */
+ * @{
+ */
 extern __IO uint32_t uwTick;
 extern uint32_t uwTickPrio;
 extern HAL_TickFreqTypeDef uwTickFreq;
 /**
-  * @}
-  */
+ * @}
+ */
 
 /* Exported functions --------------------------------------------------------*/
 /** @addtogroup HAL_Exported_Functions
-  * @{
-  */
+ * @{
+ */
 /** @addtogroup HAL_Exported_Functions_Group1
-  * @{
-  */
+ * @{
+ */
 /* Initialization and Configuration functions  ******************************/
 HAL_StatusTypeDef HAL_Init(void);
 HAL_StatusTypeDef HAL_DeInit(void);
 void HAL_MspInit(void);
 void HAL_MspDeInit(void);
-HAL_StatusTypeDef HAL_InitTick (uint32_t TickPriority);
+HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority);
 /**
-  * @}
-  */
+ * @}
+ */
 
 /** @addtogroup HAL_Exported_Functions_Group2
-  * @{
-  */
+ * @{
+ */
 /* Peripheral Control functions  ************************************************/
 void HAL_IncTick(void);
 void HAL_Delay(uint32_t Delay);
@@ -257,41 +256,40 @@ void HAL_EnableMemorySwappingBank(void);
 void HAL_DisableMemorySwappingBank(void);
 #endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx || STM32F469xx || STM32F479xx */ 
 /**
-  * @}
-  */
+ * @}
+ */
 
 /**
-  * @}
-  */
+ * @}
+ */
 /* Private types -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /** @defgroup HAL_Private_Variables HAL Private Variables
-  * @{
-  */
+ * @{
+ */
 /**
-  * @}
-  */
+ * @}
+ */
 /* Private constants ---------------------------------------------------------*/
 /** @defgroup HAL_Private_Constants HAL Private Constants
-  * @{
-  */
+ * @{
+ */
 /**
-  * @}
-  */
+ * @}
+ */
 /* Private macros ------------------------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 /**
-  * @}
-  */
+ * @}
+ */
 
 /**
-  * @}
-  */ 
-  
+ * @}
+ */
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* __STM32F4xx_HAL_H */
-
 
