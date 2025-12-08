@@ -755,7 +755,7 @@ void StartSensorTask(void *argument)
 		xQueueSend(xSensorToLcd, &sensorData, 0);
 
 		// Log every 5 seconds
-		if (gLoggingEnabled && (sampleCount % 5) == 0) {
+		if (gLoggingEnabled && (sampleCount % 2) == 0) {
 			xQueueSendToBack(xSensorToLog, &sensorData, 0);
 		}
 
@@ -784,11 +784,19 @@ void StartLogTask(void *argument)
 	for (;;) {
 		if (xQueueReceive(xSensorToLog, &sData, portMAX_DELAY) == pdPASS) {
 			char line[64];
-			// timestamp,temperature,humidity,pressure(Pa),lux
-			int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld,%ld\r\n",
+			// timestamp,temperature,humidity,pressure(Pa),lux,accelx,accely,accelz,gyrox,gyroy,gyroz
+			int len = snprintf(line, sizeof(line), "%lu,%ld,%lu,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\r\n",
 					(unsigned long) sData.timestamp,
 					(long int) sData.temperature,
-					(unsigned long) sData.humidity, (long int) sData.pressure, (long int)sData.lux);
+					(unsigned long) sData.humidity,
+					(long int)sData.pressure,
+					(long int)sData.lux,
+					(long int)sData.accelX,
+					(long int)sData.accelY,
+					(long int)sData.accelZ,
+					(long int)sData.gyroX,
+					(long int)sData.gyroY,
+					(long int)sData.gyroZ);
 
 			osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
 
