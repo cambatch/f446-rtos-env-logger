@@ -479,12 +479,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : MPU6050_INT_Pin */
-	GPIO_InitStruct.Pin = MPU6050_INT_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(MPU6050_INT_GPIO_Port, &GPIO_InitStruct);
-
 	/* USER CODE BEGIN MX_GPIO_Init_2 */
 	// Enable button interrupt
 	HAL_NVIC_SetPriority(EXTI15_10_IRQn, 15, 1);

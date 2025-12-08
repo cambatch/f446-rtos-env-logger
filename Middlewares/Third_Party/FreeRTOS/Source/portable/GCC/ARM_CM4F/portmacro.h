@@ -126,7 +126,7 @@ extern void vPortSuppressTicksAndSleep(TickType_t xExpectedIdleTime);
 #if configUSE_PORT_OPTIMISED_TASK_SELECTION == 1
 
 /* Generic helper function. */
-__attribute__( ( always_inline ))  static inline uint8_t ucPortCountLeadingZeros(
+__attribute__( ( always_inline ))    static inline uint8_t ucPortCountLeadingZeros(
 		uint32_t ulBitmap) {
 	uint8_t ucReturn;
 

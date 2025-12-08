@@ -56,6 +56,8 @@ dkms.conf
 
 
 # CubeIDE
+Debug
+Release
 *.launch
 .settings/language.settings.xml
 

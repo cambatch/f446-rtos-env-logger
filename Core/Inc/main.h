@@ -66,8 +66,6 @@ void Error_Handler(void);
 #define ILI_RES_GPIO_Port GPIOC
 #define SD_CS_Pin GPIO_PIN_3
 #define SD_CS_GPIO_Port GPIOC
-#define MPU6050_INT_Pin GPIO_PIN_1
-#define MPU6050_INT_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
