@@ -11,29 +11,6 @@ static BME280_CalibData_t calib;
 static MPU6050_AccelFs_t sAccelFs;
 static MPU6050_GyroFs_t sGyroFs;
 
-// ============================ SHT31 ===================================
-
-void SHT31_MeasureCommand(void) {
-	static const uint8_t cmd[2] = { SHT31_MEAS_CMD_HIGH, SHT31_MEAS_CMD_LOW };
-
-	HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, (uint8_t*) cmd, 2,
-	HAL_MAX_DELAY);
-}
-
-// The size of buf MUST be at least 6 bytes
-void SHT31_ReadSensor(uint8_t *buf) {
-	HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, buf, 6, HAL_MAX_DELAY);
-}
-
-// Assuming pointer to raw sensor data
-void SHT31_ConvertFromRaw(uint8_t *buf, uint32_t *h, int32_t *t) {
-	uint16_t rawTemp = ((uint16_t) buf[0] << 8) | buf[1];
-	uint16_t rawRH = ((uint16_t) buf[3] << 8) | buf[4];
-
-	*h = ((uint32_t) 1000 * rawRH + 32767u) / 65535;
-	*t = -450 + ((int32_t) 1750 * rawTemp + 32767) / 65535;
-}
-
 // ============================ BME280 ===================================
 
 static uint8_t BME280_WriteReg(uint8_t reg, uint8_t value) {

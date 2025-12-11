@@ -32,15 +32,6 @@ typedef struct {
 } SensorData_t;
 
 
-// ============================ SHT31 =============================
-#define SHT31_ADDR (0x44 << 1)
-#define SHT31_MEAS_CMD_LOW 0x06U
-#define SHT31_MEAS_CMD_HIGH 0x2CU
-
-void SHT31_MeasureCommand(void);
-void SHT31_ReadSensor(uint8_t *buf);
-void SHT31_ConvertFromRaw(uint8_t *buf, uint32_t *h, int32_t *t);
-
 // =========================== BME280 =============================
 #define BME280_ADDR (0x76 << 1)
 

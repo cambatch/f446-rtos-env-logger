@@ -31,6 +31,7 @@
 #include "ili9341.h"
 #include "sensors.h"
 #include "tsl2591.h"
+#include "sht31.h"
 
 #include "queue.h"
 /* USER CODE END Includes */
@@ -585,21 +586,14 @@ void StartLcdTask(void *argument) {
 			char line5[40];
 			char line6[15];
 
-			// Format temperature and humidity
-			char sign = (sensorData.temperature < 0) ? '-' : '+';
-			int32_t v =
-					(sensorData.temperature < 0) ?
-							-sensorData.temperature : sensorData.temperature;
-			int32_t temp_int = v / 10;
-			int32_t temp_frac = v % 10;
-
-			uint32_t rh_int = sensorData.humidity / 10;
-			uint32_t rh_frac = sensorData.humidity % 10;
+			// Humidity stored in 0-1000 (0.0-100.0) and time in milli C
+			int32_t t = sensorData.temperature;
+			int32_t temp_int = t / 1000;
+			int32_t temp_frac = (t >= 0) ? (t % 1000) : ((-t) % 1000);
+			uint32_t h = sensorData.humidity;
 
 			snprintf(line1, sizeof(line1),
-					"T: %c%ld.%01ld C    H: %lu.%01lu %%", sign,
-					(long) temp_int, (long) temp_frac, (unsigned long) rh_int,
-					(unsigned long) rh_frac);
+					"T: %ld.%03ld C    H: %lu.%01lu %%RH", temp_int, temp_frac, h / 10, h % 10);
 
 			// Format lux
 			if (sensorData.lux < 0) {
@@ -689,7 +683,7 @@ void StartSensorTask(void *argument) {
 	for (;;) {
 		sensorData.timestamp = xTaskGetTickCount();
 
-		SHT31_MeasureCommand();
+		SHT31_StartMeasurement();
 
 		vTaskDelay(measureDelay);
 
