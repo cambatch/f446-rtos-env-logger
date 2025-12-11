@@ -30,6 +30,7 @@
 
 #include "ili9341.h"
 #include "sensors.h"
+#include "tsl2591.h"
 
 #include "queue.h"
 /* USER CODE END Includes */
@@ -604,10 +605,7 @@ void StartLcdTask(void *argument) {
 			if (sensorData.lux < 0) {
 				snprintf(line2, sizeof(line2), "Saturated");
 			} else {
-				int32_t lux_int = sensorData.lux / 10;
-				int32_t lux_frac = sensorData.lux % 10;
-				snprintf(line2, sizeof(line2), "%ld.%01ld lx", (long) lux_int,
-						(long) lux_frac);
+				snprintf(line2, sizeof(line2), "%ld lx", (long)sensorData.lux);
 			}
 
 			// Pressure
@@ -700,7 +698,7 @@ void StartSensorTask(void *argument) {
 				&sensorData.temperature);
 
 		TSL2591_ReadChannels(&chs[0], &chs[1]);
-		sensorData.lux = TSL2591_CalcLuxX10(chs[0], chs[1]);
+		sensorData.lux = TSL2591_CalcIntLux(chs[0], chs[1]);
 
 		BME280_ReadRaw(&raw_temp, &raw_press, &raw_humid);
 		sensorData.pressure = BME280_CompensatePressure(raw_press, raw_temp);

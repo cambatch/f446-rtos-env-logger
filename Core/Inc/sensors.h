@@ -31,35 +31,6 @@ typedef struct {
 	int32_t gyroZ;
 } SensorData_t;
 
-// ========================== TSL2591 ===========================
-#define TSL2591_ADDR        (0x29 << 1)
-#define TSL2591_CMD_NORMAL  0xA0  // CMD=1, TRANSACTION=01
-
-// Register addresses
-#define TSL2591_REG_ENABLE   0x00
-#define TSL2591_REG_CONTROL  0x01
-#define TSL2591_REG_ID       0x12
-
-// ENABLE bits
-#define TSL2591_ENABLE_PON   0x01
-#define TSL2591_ENABLE_AEN   0x02
-
-// CONTROL fields
-#define TSL2591_AGAIN_MED    (0x01 << 4) // bits 5:4
-#define TSL2591_ATIME_100MS  0x00        // bits 2:0
-
-#define TSL2591_REG_STATUS   0x13
-#define TSL2591_REG_C0DATAL  0x14
-
-#define TSL2591_SATURATED 0xFFFFu
-
-bool TSL2591_Init(void);
-
-void TSL2591_Write(uint8_t reg, uint8_t value);
-uint8_t TSL2591_Read(uint8_t reg);
-void TSL2591_ReadMulti(uint8_t reg, uint8_t *buf, uint8_t len);
-void TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1);
-int32_t TSL2591_CalcLuxX10(uint16_t ch0, uint16_t ch1);
 
 // ============================ SHT31 =============================
 #define SHT31_ADDR (0x44 << 1)
