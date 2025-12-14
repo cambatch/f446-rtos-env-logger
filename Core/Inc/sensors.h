@@ -12,6 +12,8 @@
 
 #include "stm32f4xx_hal.h"
 
+#include "tsl2591.h"
+
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 
@@ -19,7 +21,10 @@ typedef struct {
 	uint32_t timestamp;
 	int32_t temperature; // temp_x10
 	uint32_t humidity;	 // humidity_x10
-	int32_t lux;		 // lux_x10
+
+	TSL2591_SensorData_t tslData;
+	int32_t lux;		 // lux
+
 	int32_t pressure;	 // Pa
 
 	int32_t accelX;

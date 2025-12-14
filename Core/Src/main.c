@@ -85,6 +85,9 @@ static uint32_t sampleCount = 0;
 
 volatile bool gLoggingEnabled = false;
 
+// data from all sensors
+SensorData_t gSensorData;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -180,7 +183,7 @@ int main(void) {
 
 	// Try to initialize TSL2591
 	for (int i = 0; i < 5; ++i) {
-		if (TSL2591_Init())
+		if (TSL2591_Init(TSL2591_INT_NONE))
 			break;
 		HAL_Delay(200);
 	}
@@ -661,7 +664,7 @@ void StartLcdTask(void *argument) {
 /* USER CODE END Header_StartSensorTask */
 void StartSensorTask(void *argument) {
 	/* USER CODE BEGIN StartSensorTask */
-	SensorData_t sensorData = { };
+	SensorData_t sensorData = {};
 
 	const TickType_t taskDelay = pdMS_TO_TICKS(1000);
 

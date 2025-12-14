@@ -60,7 +60,7 @@ static void update_cpl_scaled(uint8_t controlReg, uint32_t GA) {
 	gCplScaled = (denom != 0) ? (num / denom) : 0;
 }
 
-bool TSL2591_Init(void) {
+bool TSL2591_Init(TSL2591_Interrupt_t interrupt) {
 	// check for id
 	HAL_StatusTypeDef ret;
 
@@ -73,8 +73,11 @@ bool TSL2591_Init(void) {
 		return false;
 	}
 
-	write_reg(TSL2591_REG_ENABLE, TSL2591_ENABLE_PON | TSL2591_ENABLE_AEN);
-	write_reg(TSL2591_REG_CONTROL, TSL2591_AGAIN_MED | TSL2591_ATIME_100MS);
+	const uint8_t controlBits = TSL2591_AGAIN_MED | TSL2591_ATIME_100MS;
+	const uint8_t enableBits = TSL2591_ENABLE_PON | TSL2591_ENABLE_AEN;
+
+	write_reg(TSL2591_REG_ENABLE, enableBits);
+	write_reg(TSL2591_REG_CONTROL, controlBits);
 
 	ret = read_reg(TSL2591_REG_CONTROL, &id); // reuse id to store atime and again
 	if(ret != HAL_OK) {
@@ -82,6 +85,17 @@ bool TSL2591_Init(void) {
 	}
 
 	update_cpl_scaled(id, 1);
+
+	switch(interrupt) {
+		case TSL2591_INT_NP:
+			write_reg(TSL2591_REG_ENABLE, enableBits | TSL2591_ENABLE_NPIEN);
+			break;
+		case TSL2591_INT_P:
+			write_reg(TSL2591_REG_ENABLE, enableBits | TSL2591_ENABLE_AIEN);
+			break;
+		default:
+			break;
+	}
 
 	return true;
 }
