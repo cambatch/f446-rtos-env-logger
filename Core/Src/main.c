@@ -32,6 +32,7 @@
 #include "sensors.h"
 #include "tsl2591.h"
 #include "sht31.h"
+#include "bme280.h"
 
 #include "queue.h"
 /* USER CODE END Includes */

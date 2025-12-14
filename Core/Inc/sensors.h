@@ -38,51 +38,7 @@ typedef struct {
 
 
 // =========================== BME280 =============================
-#define BME280_ADDR (0x76 << 1)
 
-/* Registers */
-#define BME280_REG_ID       0xD0
-#define BME280_REG_RESET    0xE0
-#define BME280_REG_CTRL_HUM 0xF2
-#define BME280_REG_STATUS   0xF3
-#define BME280_REG_CTRL_MEAS 0xF4
-#define BME280_REG_CONFIG   0xF5
-#define BME280_REG_PRESS_MSB 0xF7
-
-#define BME280_REG_CALIB00  0x88
-#define BME280_REG_CALIB26  0xE1
-
-#define BME280_RESET_VALUE  0xB6
-
-typedef struct {
-	/* Temperature calibration */
-	uint16_t dig_T1;
-	int16_t dig_T2;
-	int16_t dig_T3;
-
-	/* Pressure calibration */
-	uint16_t dig_P1;
-	int16_t dig_P2;
-	int16_t dig_P3;
-	int16_t dig_P4;
-	int16_t dig_P5;
-	int16_t dig_P6;
-	int16_t dig_P7;
-	int16_t dig_P8;
-	int16_t dig_P9;
-
-	/* Humidity calibration */
-	uint8_t dig_H1;
-	int16_t dig_H2;
-	uint8_t dig_H3;
-	int16_t dig_H4;
-	int16_t dig_H5;
-	int8_t dig_H6;
-} BME280_CalibData_t;
-
-uint8_t BME280_Init(void);
-uint8_t BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum);
-int32_t BME280_CompensatePressure(int32_t adcP, int32_t adcT);
 
 // =================================== MPU6050 ==================================
 #define MPU6050_ADDR (0x68 << 1)
