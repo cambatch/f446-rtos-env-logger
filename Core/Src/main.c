@@ -30,10 +30,7 @@
 
 #include "ili9341.h"
 #include "sensors.h"
-#include "tsl2591.h"
-#include "sht31.h"
-#include "bme280.h"
-#include "mpu6050.h"
+
 
 #include "queue.h"
 /* USER CODE END Includes */
@@ -591,37 +588,55 @@ void StartLcdTask(void *argument) {
 			char line5[40];
 			char line6[15];
 
-			// Humidity stored in 0-1000 (0.0-100.0) and time in milli C
-			int32_t t = sensorData.temperature;
-			int32_t temp_int = t / 1000;
-			int32_t temp_frac = (t >= 0) ? (t % 1000) : ((-t) % 1000);
-			uint32_t h = sensorData.humidity;
+			if(sensorData.shtData.ok) {
+				// Humidity stored in 0-1000 (0.0-100.0) and temp in milli C
+				int32_t t = sensorData.shtData.temperature;
+				int32_t temp_int = t / 1000;
+				int32_t temp_frac = (t >= 0) ? (t % 1000) : ((-t) % 1000);
+				uint32_t h = sensorData.shtData.humidity;
 
-			snprintf(line1, sizeof(line1),
-					"T: %ld.%03ld C    H: %lu.%01lu %%RH", temp_int, temp_frac, h / 10, h % 10);
-
-			// Format lux
-			if (sensorData.lux < 0) {
-				snprintf(line2, sizeof(line2), "Saturated");
+				snprintf(line1, sizeof(line1),
+						"T: %ld.%03ld C    H: %lu.%01lu %%RH", temp_int, temp_frac, h / 10, h % 10);
 			} else {
-				snprintf(line2, sizeof(line2), "%ld lx", (long)sensorData.lux);
+				snprintf(line1, sizeof(line1), "SHT31 Sensor ERROR!");
 			}
 
-			// Pressure
-			uint32_t p_int = sensorData.pressure / 100;
-			uint32_t p_frac = sensorData.pressure % 100;
-			snprintf(line3, sizeof(line3), "P: %ld.%01ld hPa", p_int, p_frac);
+			if(sensorData.tslData.ok) {
+				// Format lux
+				if (sensorData.tslData.lux < 0) {
+					snprintf(line2, sizeof(line2), "Saturated");
+				} else {
+					snprintf(line2, sizeof(line2), "%ld lx", (long)sensorData.tslData.lux);
+				}
+			} else {
+				snprintf(line2, sizeof(line2), "TSL2591 Sensor ERROR!");
+			}
 
-			// accel
-			snprintf(line4, sizeof(line4), "Ax:%4ld Ay:%4ld Az:%4ld",
-					sensorData.accelX, sensorData.accelY, sensorData.accelZ);
+			if(sensorData.bmeData.ok) {
+				// Pressure
+				uint32_t p_int = sensorData.bmeData.pressure / 100;
+				uint32_t p_frac = sensorData.bmeData.pressure % 100;
+				snprintf(line3, sizeof(line3), "P: %ld.%01ld hPa", p_int, p_frac);
+			} else {
+				snprintf(line3, sizeof(line3), "BME280 Sensor ERROR!");
+			}
 
-			// gyro
-			int32_t gxDps = sensorData.gyroX / 1000;
-			int32_t gyDps = sensorData.gyroY / 1000;
-			int32_t gzDps = sensorData.gyroZ / 1000;
-			snprintf(line5, sizeof(line5), "Gx:%ld Gy:%ld Gz:%ld", (long) gxDps,
-					(long) gyDps, (long) gzDps);
+
+			if(sensorData.mpuData.ok) {
+				// accel
+				snprintf(line4, sizeof(line4), "Ax:%4ld Ay:%4ld Az:%4ld",
+						sensorData.mpuData.accelX, sensorData.mpuData.accelY, sensorData.mpuData.accelZ);
+
+				// gyro
+				int32_t gxDps = sensorData.mpuData.gyroX / 1000;
+				int32_t gyDps = sensorData.mpuData.gyroY / 1000;
+				int32_t gzDps = sensorData.mpuData.gyroZ / 1000;
+				snprintf(line5, sizeof(line5), "Gx:%ld Gy:%ld Gz:%ld", (long) gxDps,
+						(long) gyDps, (long) gzDps);
+			} else {
+				snprintf(line4, sizeof(line4), "MPU6050 Sensor ERROR!");
+				snprintf(line5, sizeof(line5), "MPU6050 Sensor ERROR!");
+			}
 
 			// Logging status
 			snprintf(line6, sizeof(line6), "Logging %s",
@@ -672,15 +687,17 @@ void StartSensorTask(void *argument) {
 
 	// SHT31
 	const TickType_t measureDelay = pdMS_TO_TICKS(20);
-	uint8_t data[6] = { };
+	uint8_t shtRawData[6] = { };
 
 	// TSL2591
 	uint16_t chs[2] = { };
 
+	// BME280
 	int32_t raw_press;
 	int32_t raw_temp;
 	int32_t raw_humid;
 
+	// MPU6050
 	MPU6050_Raw_t imuRaw;
 	MPU6050_Scaled_t imuScaled;
 
@@ -688,31 +705,49 @@ void StartSensorTask(void *argument) {
 	for (;;) {
 		sensorData.timestamp = xTaskGetTickCount();
 
-		SHT31_StartMeasurement();
+		if(SHT31_StartMeasurement()) {
+			vTaskDelay(measureDelay);
 
-		vTaskDelay(measureDelay);
+			if(SHT31_ReadSensor(shtRawData)) {
+				sensorData.shtData.ok = true;
+				SHT31_ConvertFromRaw(shtRawData, &sensorData.shtData.humidity,
+										   &sensorData.shtData.temperature);
+			} else {
+				sensorData.shtData.ok = false;
+			}
+		} else {
+			sensorData.shtData.ok = false;
+		}
 
-		SHT31_ReadSensor(data);
-		SHT31_ConvertFromRaw(data, &sensorData.humidity,
-				&sensorData.temperature);
+		if(TSL2591_ReadChannels(&chs[0], &chs[1])) {
+			sensorData.tslData.ok = true;
+			sensorData.tslData.lux = TSL2591_CalcIntLux(chs[0], chs[1]);
+		} else {
+			sensorData.tslData.ok = false;
+		}
 
-		TSL2591_ReadChannels(&chs[0], &chs[1]);
-		sensorData.lux = TSL2591_CalcIntLux(chs[0], chs[1]);
 
-		BME280_ReadRaw(&raw_temp, &raw_press, &raw_humid);
-		sensorData.pressure = BME280_CompensatePressure(raw_press, raw_temp);
+		if(BME280_ReadRaw(&raw_temp, &raw_press, &raw_humid)) {
+			sensorData.bmeData.ok = true;
+			sensorData.bmeData.pressure = BME280_CompensatePressure(raw_press, raw_temp);
+		} else {
+			sensorData.bmeData.ok = false;
+		}
 
 		// MPU read
 		if (MPU6050_ReadRaw(&imuRaw)) {
+			sensorData.mpuData.ok = true;
 			MPU6050_Convert(&imuRaw, MPU6050_ACCEL_FS_2G,
 					MPU6050_GYRO_FS_250DPS, &imuScaled);
 
-			sensorData.accelX = imuScaled.axMg;
-			sensorData.accelY = imuScaled.ayMg;
-			sensorData.accelZ = imuScaled.azMg;
-			sensorData.gyroX = imuScaled.gxMdps;
-			sensorData.gyroY = imuScaled.gyMdps;
-			sensorData.gyroZ = imuScaled.gzMdps;
+			sensorData.mpuData.accelX = imuScaled.axMg;
+			sensorData.mpuData.accelY = imuScaled.ayMg;
+			sensorData.mpuData.accelZ = imuScaled.azMg;
+			sensorData.mpuData.gyroX = imuScaled.gxMdps;
+			sensorData.mpuData.gyroY = imuScaled.gyMdps;
+			sensorData.mpuData.gyroZ = imuScaled.gzMdps;
+		} else {
+			sensorData.mpuData.ok = false;
 		}
 
 		xQueueSend(xSensorToLcd, &sensorData, 0);
@@ -750,12 +785,12 @@ void StartLogTask(void *argument) {
 			int len = snprintf(line, sizeof(line),
 					"%lu,%ld,%lu,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\r\n",
 					(unsigned long) sData.timestamp,
-					(long int) sData.temperature,
-					(unsigned long) sData.humidity, (long int) sData.pressure,
-					(long int) sData.lux, (long int) sData.accelX,
-					(long int) sData.accelY, (long int) sData.accelZ,
-					(long int) sData.gyroX, (long int) sData.gyroY,
-					(long int) sData.gyroZ);
+					(long int) sData.shtData.temperature,
+					(unsigned long) sData.shtData.humidity, (long int) sData.bmeData.pressure,
+					(long int) sData.tslData.lux, (long int) sData.mpuData.accelX,
+					(long int) sData.mpuData.accelY, (long int) sData.mpuData.accelZ,
+					(long int) sData.mpuData.gyroX, (long int) sData.mpuData.gyroY,
+					(long int) sData.mpuData.gyroZ);
 
 			osMutexAcquire(Spi1MutexHandle, portMAX_DELAY);
 

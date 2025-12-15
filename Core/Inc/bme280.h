@@ -9,6 +9,7 @@
 #define INC_BME280_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 
 #define BME280_ADDR (0x76 << 1)
@@ -53,8 +54,10 @@ typedef struct {
 	int8_t digH6;
 } BME280_CalibData_t;
 
+
+
 uint8_t BME280_Init(void);
-uint8_t BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum);
+bool BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum);
 int32_t BME280_CompensatePressure(int32_t adcP, int32_t adcT);
 
 #endif /* INC_BME280_H_ */

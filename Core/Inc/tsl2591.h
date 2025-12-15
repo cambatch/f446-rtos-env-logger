@@ -50,11 +50,6 @@
 #define TSL2591_LUX_COEFD 	86
 
 
-typedef struct {
-	bool ok;
-	uint16_t ch1;
-	uint16_t ch2;
-} TSL2591_SensorData_t;
 
 typedef enum {
 	TSL2591_INT_NONE,
@@ -64,7 +59,7 @@ typedef enum {
 
 
 bool TSL2591_Init(TSL2591_Interrupt_t interrupt);
-void TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1);
+bool TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1);
 int32_t TSL2591_CalcIntLux(uint16_t ch0, uint16_t ch1);
 
 #endif /* INC_TSL2591_H_ */

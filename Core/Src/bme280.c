@@ -109,18 +109,18 @@ uint8_t BME280_Init() {
 	return ret;
 }
 
-uint8_t BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum) {
+bool BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum) {
 	uint8_t data[8];
 	HAL_StatusTypeDef ret;
 
 	ret = wait_for_measure();
 	if (ret != HAL_OK)
-		return ret;
+		return false;
 
 	// Burst read from 0xF7: press[3], temp[3], hum[2]
 	ret = read_reg(BME280_REG_PRESS_MSB, data, sizeof(data));
 	if (ret != HAL_OK)
-		return ret;
+		return false;
 
 	int32_t adc_P = ((int32_t) data[0] << 12) | ((int32_t) data[1] << 4)
 			| ((int32_t) data[2] >> 4);
@@ -137,7 +137,7 @@ uint8_t BME280_ReadRaw(int32_t *raw_temp, int32_t *raw_press, int32_t *raw_hum) 
 	if (raw_hum)
 		*raw_hum = adc_H;
 
-	return HAL_OK;
+	return true;
 }
 
 int32_t BME280_CompensatePressure(int32_t adcP, int32_t adcT) {

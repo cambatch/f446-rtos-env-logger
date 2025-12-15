@@ -100,9 +100,11 @@ bool TSL2591_Init(TSL2591_Interrupt_t interrupt) {
 	return true;
 }
 
-void TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1) {
+bool TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1) {
 	uint8_t buf[4];
-	read_multi_reg(TSL2591_REG_C0DATAL, buf, sizeof(buf));
+	if(read_multi_reg(TSL2591_REG_C0DATAL, buf, sizeof(buf)) != HAL_OK) {
+		return false;
+	}
 
 	// Data received in little endian
 	*ch0 = ((uint16_t)buf[1] << 8) | buf[0];

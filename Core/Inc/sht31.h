@@ -19,6 +19,8 @@
 #define SHT31_MEAS_CMD_HIGH 0x2CU
 
 
+
+
 bool SHT31_Init(void);
 
 bool SHT31_StartMeasurement(void);
