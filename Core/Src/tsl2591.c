@@ -109,6 +109,7 @@ bool TSL2591_ReadChannels(uint16_t *ch0, uint16_t *ch1) {
 	// Data received in little endian
 	*ch0 = ((uint16_t)buf[1] << 8) | buf[0];
 	*ch1 = ((uint16_t)buf[3] << 8) | buf[2];
+	return true;
 }
 
 int32_t TSL2591_CalcIntLux(uint16_t ch0, uint16_t ch1) {
