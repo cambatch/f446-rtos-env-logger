@@ -32,10 +32,10 @@
 #define ARM_CACHEL1_ARMV7_H
 
 /**
- \ingroup  CMSIS_Core_FunctionInterface
- \defgroup CMSIS_Core_CacheFunctions Cache Functions
- \brief    Functions that configure Instruction and Data cache.
- @{
+  \ingroup  CMSIS_Core_FunctionInterface
+  \defgroup CMSIS_Core_CacheFunctions Cache Functions
+  \brief    Functions that configure Instruction and Data cache.
+  @{
  */
 
 /* Cache Size ID Register Macros */
@@ -51,11 +51,12 @@
 #endif
 
 /**
- \brief   Enable I-Cache
- \details Turns on I-Cache
- */
-__STATIC_FORCEINLINE void SCB_EnableICache(void) {
-#if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
+  \brief   Enable I-Cache
+  \details Turns on I-Cache
+  */
+__STATIC_FORCEINLINE void SCB_EnableICache (void)
+{
+  #if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
     if (SCB->CCR & SCB_CCR_IC_Msk) return;  /* return if ICache is already enabled */
 
     __DSB();
@@ -69,12 +70,14 @@ __STATIC_FORCEINLINE void SCB_EnableICache(void) {
   #endif
 }
 
+
 /**
- \brief   Disable I-Cache
- \details Turns off I-Cache
- */
-__STATIC_FORCEINLINE void SCB_DisableICache(void) {
-#if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
+  \brief   Disable I-Cache
+  \details Turns off I-Cache
+  */
+__STATIC_FORCEINLINE void SCB_DisableICache (void)
+{
+  #if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
     __DSB();
     __ISB();
     SCB->CCR &= ~(uint32_t)SCB_CCR_IC_Msk;  /* disable I-Cache */
@@ -84,12 +87,14 @@ __STATIC_FORCEINLINE void SCB_DisableICache(void) {
   #endif
 }
 
+
 /**
- \brief   Invalidate I-Cache
- \details Invalidates I-Cache
- */
-__STATIC_FORCEINLINE void SCB_InvalidateICache(void) {
-#if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
+  \brief   Invalidate I-Cache
+  \details Invalidates I-Cache
+  */
+__STATIC_FORCEINLINE void SCB_InvalidateICache (void)
+{
+  #if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
     __DSB();
     __ISB();
     SCB->ICIALLU = 0UL;
@@ -98,17 +103,18 @@ __STATIC_FORCEINLINE void SCB_InvalidateICache(void) {
   #endif
 }
 
+
 /**
- \brief   I-Cache Invalidate by address
- \details Invalidates I-Cache for the given address.
- I-Cache is invalidated starting from a 32 byte aligned address in 32 byte granularity.
- I-Cache memory blocks which are part of given address + given size are invalidated.
- \param[in]   addr    address
- \param[in]   isize   size of memory block (in number of bytes)
- */
-__STATIC_FORCEINLINE void SCB_InvalidateICache_by_Addr(volatile void *addr,
-		int32_t isize) {
-#if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
+  \brief   I-Cache Invalidate by address
+  \details Invalidates I-Cache for the given address.
+           I-Cache is invalidated starting from a 32 byte aligned address in 32 byte granularity.
+           I-Cache memory blocks which are part of given address + given size are invalidated.
+  \param[in]   addr    address
+  \param[in]   isize   size of memory block (in number of bytes)
+*/
+__STATIC_FORCEINLINE void SCB_InvalidateICache_by_Addr (volatile void *addr, int32_t isize)
+{
+  #if defined (__ICACHE_PRESENT) && (__ICACHE_PRESENT == 1U)
     if ( isize > 0 ) {
        int32_t op_size = isize + (((uint32_t)addr) & (__SCB_ICACHE_LINE_SIZE - 1U));
       uint32_t op_addr = (uint32_t)addr /* & ~(__SCB_ICACHE_LINE_SIZE - 1U) */;
@@ -127,12 +133,14 @@ __STATIC_FORCEINLINE void SCB_InvalidateICache_by_Addr(volatile void *addr,
   #endif
 }
 
+
 /**
- \brief   Enable D-Cache
- \details Turns on D-Cache
- */
-__STATIC_FORCEINLINE void SCB_EnableDCache(void) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   Enable D-Cache
+  \details Turns on D-Cache
+  */
+__STATIC_FORCEINLINE void SCB_EnableDCache (void)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     uint32_t ccsidr;
     uint32_t sets;
     uint32_t ways;
@@ -165,12 +173,14 @@ __STATIC_FORCEINLINE void SCB_EnableDCache(void) {
   #endif
 }
 
+
 /**
- \brief   Disable D-Cache
- \details Turns off D-Cache
- */
-__STATIC_FORCEINLINE void SCB_DisableDCache(void) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   Disable D-Cache
+  \details Turns off D-Cache
+  */
+__STATIC_FORCEINLINE void SCB_DisableDCache (void)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     uint32_t ccsidr;
     uint32_t sets;
     uint32_t ways;
@@ -201,12 +211,14 @@ __STATIC_FORCEINLINE void SCB_DisableDCache(void) {
   #endif
 }
 
+
 /**
- \brief   Invalidate D-Cache
- \details Invalidates D-Cache
- */
-__STATIC_FORCEINLINE void SCB_InvalidateDCache(void) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   Invalidate D-Cache
+  \details Invalidates D-Cache
+  */
+__STATIC_FORCEINLINE void SCB_InvalidateDCache (void)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     uint32_t ccsidr;
     uint32_t sets;
     uint32_t ways;
@@ -234,12 +246,14 @@ __STATIC_FORCEINLINE void SCB_InvalidateDCache(void) {
   #endif
 }
 
+
 /**
- \brief   Clean D-Cache
- \details Cleans D-Cache
- */
-__STATIC_FORCEINLINE void SCB_CleanDCache(void) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   Clean D-Cache
+  \details Cleans D-Cache
+  */
+__STATIC_FORCEINLINE void SCB_CleanDCache (void)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     uint32_t ccsidr;
     uint32_t sets;
     uint32_t ways;
@@ -267,12 +281,14 @@ __STATIC_FORCEINLINE void SCB_CleanDCache(void) {
   #endif
 }
 
+
 /**
- \brief   Clean & Invalidate D-Cache
- \details Cleans and Invalidates D-Cache
- */
-__STATIC_FORCEINLINE void SCB_CleanInvalidateDCache(void) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   Clean & Invalidate D-Cache
+  \details Cleans and Invalidates D-Cache
+  */
+__STATIC_FORCEINLINE void SCB_CleanInvalidateDCache (void)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     uint32_t ccsidr;
     uint32_t sets;
     uint32_t ways;
@@ -300,17 +316,18 @@ __STATIC_FORCEINLINE void SCB_CleanInvalidateDCache(void) {
   #endif
 }
 
+
 /**
- \brief   D-Cache Invalidate by address
- \details Invalidates D-Cache for the given address.
- D-Cache is invalidated starting from a 32 byte aligned address in 32 byte granularity.
- D-Cache memory blocks which are part of given address + given size are invalidated.
- \param[in]   addr    address
- \param[in]   dsize   size of memory block (in number of bytes)
- */
-__STATIC_FORCEINLINE void SCB_InvalidateDCache_by_Addr(volatile void *addr,
-		int32_t dsize) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   D-Cache Invalidate by address
+  \details Invalidates D-Cache for the given address.
+           D-Cache is invalidated starting from a 32 byte aligned address in 32 byte granularity.
+           D-Cache memory blocks which are part of given address + given size are invalidated.
+  \param[in]   addr    address
+  \param[in]   dsize   size of memory block (in number of bytes)
+*/
+__STATIC_FORCEINLINE void SCB_InvalidateDCache_by_Addr (volatile void *addr, int32_t dsize)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     if ( dsize > 0 ) {
        int32_t op_size = dsize + (((uint32_t)addr) & (__SCB_DCACHE_LINE_SIZE - 1U));
       uint32_t op_addr = (uint32_t)addr /* & ~(__SCB_DCACHE_LINE_SIZE - 1U) */;
@@ -329,17 +346,18 @@ __STATIC_FORCEINLINE void SCB_InvalidateDCache_by_Addr(volatile void *addr,
   #endif
 }
 
+
 /**
- \brief   D-Cache Clean by address
- \details Cleans D-Cache for the given address
- D-Cache is cleaned starting from a 32 byte aligned address in 32 byte granularity.
- D-Cache memory blocks which are part of given address + given size are cleaned.
- \param[in]   addr    address
- \param[in]   dsize   size of memory block (in number of bytes)
- */
-__STATIC_FORCEINLINE void SCB_CleanDCache_by_Addr(volatile void *addr,
-		int32_t dsize) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   D-Cache Clean by address
+  \details Cleans D-Cache for the given address
+           D-Cache is cleaned starting from a 32 byte aligned address in 32 byte granularity.
+           D-Cache memory blocks which are part of given address + given size are cleaned.
+  \param[in]   addr    address
+  \param[in]   dsize   size of memory block (in number of bytes)
+*/
+__STATIC_FORCEINLINE void SCB_CleanDCache_by_Addr (volatile void *addr, int32_t dsize)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     if ( dsize > 0 ) {
        int32_t op_size = dsize + (((uint32_t)addr) & (__SCB_DCACHE_LINE_SIZE - 1U));
       uint32_t op_addr = (uint32_t)addr /* & ~(__SCB_DCACHE_LINE_SIZE - 1U) */;
@@ -358,17 +376,18 @@ __STATIC_FORCEINLINE void SCB_CleanDCache_by_Addr(volatile void *addr,
   #endif
 }
 
+
 /**
- \brief   D-Cache Clean and Invalidate by address
- \details Cleans and invalidates D_Cache for the given address
- D-Cache is cleaned and invalidated starting from a 32 byte aligned address in 32 byte granularity.
- D-Cache memory blocks which are part of given address + given size are cleaned and invalidated.
- \param[in]   addr    address (aligned to 32-byte boundary)
- \param[in]   dsize   size of memory block (in number of bytes)
- */
-__STATIC_FORCEINLINE void SCB_CleanInvalidateDCache_by_Addr(volatile void *addr,
-		int32_t dsize) {
-#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+  \brief   D-Cache Clean and Invalidate by address
+  \details Cleans and invalidates D_Cache for the given address
+           D-Cache is cleaned and invalidated starting from a 32 byte aligned address in 32 byte granularity.
+           D-Cache memory blocks which are part of given address + given size are cleaned and invalidated.
+  \param[in]   addr    address (aligned to 32-byte boundary)
+  \param[in]   dsize   size of memory block (in number of bytes)
+*/
+__STATIC_FORCEINLINE void SCB_CleanInvalidateDCache_by_Addr (volatile void *addr, int32_t dsize)
+{
+  #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
     if ( dsize > 0 ) {
        int32_t op_size = dsize + (((uint32_t)addr) & (__SCB_DCACHE_LINE_SIZE - 1U));
       uint32_t op_addr = (uint32_t)addr /* & ~(__SCB_DCACHE_LINE_SIZE - 1U) */;

@@ -31,12 +31,13 @@
 #ifndef PAC_ARMV81_H
 #define PAC_ARMV81_H
 
+
 /* ###################  PAC Key functions  ########################### */
 /**
- \ingroup  CMSIS_Core_FunctionInterface
- \defgroup CMSIS_Core_PacKeyFunctions PAC Key functions
- \brief    Functions that access the PAC keys.
- @{
+  \ingroup  CMSIS_Core_FunctionInterface
+  \defgroup CMSIS_Core_PacKeyFunctions PAC Key functions
+  \brief    Functions that access the PAC keys.
+  @{
  */
 
 #if (defined (__ARM_FEATURE_PAUTH) && (__ARM_FEATURE_PAUTH == 1))
@@ -200,5 +201,6 @@ __STATIC_FORCEINLINE void __TZ_set_PAC_KEY_U_NS (uint32_t* pPacKey) {
 #endif /* (defined (__ARM_FEATURE_PAUTH) && (__ARM_FEATURE_PAUTH == 1)) */
 
 /*@} end of CMSIS_Core_PacKeyFunctions */
+
 
 #endif /* PAC_ARMV81_H */
